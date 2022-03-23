@@ -1,12 +1,13 @@
+import { resolver } from "@rocicorp/resolver";
 import { expect, test, vi } from "vitest";
 import { NattoEvaluator } from "./api";
 import { Pane } from "./types";
 
-const InputPaneId = "M02M5EKLdkyURQXrY1c3i";
-const OutputPaneId = "n5EJAkBU4NgEWOGHWv1wT";
+const PANE_ID = "M02M5EKLdkyURQXrY1c3i";
+const OUTPUT_PANE_ID = "n5EJAkBU4NgEWOGHWv1wT";
 const MOCK_PANES: Pane[] = [
   {
-    id: InputPaneId,
+    id: PANE_ID,
     rect: [32, 32, 256, 144],
     z: 1,
     inputs: [],
@@ -17,11 +18,11 @@ const MOCK_PANES: Pane[] = [
     babelPlugins: [],
   },
   {
-    id: OutputPaneId,
+    id: OUTPUT_PANE_ID,
     type: 0,
     rect: [368, 32, 256, 144],
     z: 2,
-    inputs: [{ id: "u5wc0phd", name: "x", source: [InputPaneId, 0] }],
+    inputs: [{ id: "u5wc0phd", name: "x", source: [PANE_ID, 0] }],
     expression: "x + 1",
     babelPlugins: [],
     autorun: true,
@@ -36,8 +37,8 @@ test("runs eval panes", async () => {
   const evaluator = new NattoEvaluator(MOCK_PANES);
   const inputFn = vi.fn();
   const outputFn = vi.fn();
-  evaluator.subscribeToPaneOutput(InputPaneId, 0, inputFn);
-  evaluator.subscribeToPaneOutput(OutputPaneId, 0, outputFn);
+  evaluator.subscribeToPaneOutput(PANE_ID, 0, inputFn);
+  evaluator.subscribeToPaneOutput(OUTPUT_PANE_ID, 0, outputFn);
   await new Promise(process.nextTick);
   expect(last(inputFn.mock.calls)[0]).toEqual(["value", 1]);
   expect(last(outputFn.mock.calls)[0]).toEqual(["value", 2]);
@@ -47,21 +48,21 @@ test("setPaneValue runs dependent panes", async () => {
   const evaluator = new NattoEvaluator(MOCK_PANES);
   const inputFn = vi.fn();
   const outputFn = vi.fn();
-  evaluator.subscribeToPaneOutput(InputPaneId, 0, inputFn);
-  evaluator.subscribeToPaneOutput(OutputPaneId, 0, outputFn);
+  evaluator.subscribeToPaneOutput(PANE_ID, 0, inputFn);
+  evaluator.subscribeToPaneOutput(OUTPUT_PANE_ID, 0, outputFn);
   await new Promise(process.nextTick);
-  expect(inputFn.mock.calls[0][0]).toEqual(["value", 1]);
-  expect(outputFn.mock.calls[0][0]).toEqual(["value", 2]);
-  evaluator.setPaneValue(InputPaneId, 0, 2);
+  expect(last(inputFn.mock.calls)[0]).toEqual(["value", 1]);
+  expect(last(outputFn.mock.calls)[0]).toEqual(["value", 2]);
+  evaluator.setPaneValue(PANE_ID, 0, 2);
   await new Promise(process.nextTick);
-  expect(inputFn.mock.calls[1][0]).toEqual(["value", 2]);
-  expect(outputFn.mock.calls[1][0]).toEqual(["value", 3]);
+  expect(last(inputFn.mock.calls)[0]).toEqual(["value", 2]);
+  expect(last(outputFn.mock.calls)[0]).toEqual(["value", 3]);
 });
 
 test("calling state pane setter reruns dependent panes", async () => {
   const evaluator = new NattoEvaluator([
     {
-      id: InputPaneId,
+      id: PANE_ID,
       rect: [32, 32, 256, 144],
       z: 1,
       type: 8,
@@ -71,11 +72,11 @@ test("calling state pane setter reruns dependent panes", async () => {
   ]);
   const inputFn = vi.fn();
   const outputFn = vi.fn();
-  evaluator.subscribeToPaneOutput(InputPaneId, 0, inputFn);
-  evaluator.subscribeToPaneOutput(OutputPaneId, 0, outputFn);
+  evaluator.subscribeToPaneOutput(PANE_ID, 0, inputFn);
+  evaluator.subscribeToPaneOutput(OUTPUT_PANE_ID, 0, outputFn);
   await new Promise(process.nextTick);
   expect(last(outputFn.mock.calls)[0]).toEqual(["value", 2]);
-  const stateSetterOutput = evaluator.getPaneOutput(InputPaneId, 1);
+  const stateSetterOutput = evaluator.getPaneOutput(PANE_ID, 1);
   expect(stateSetterOutput[0]).toEqual("value");
   const stateSetter = stateSetterOutput[1];
   stateSetter(2);
@@ -89,7 +90,7 @@ test("globals are referenced", async () => {
   const evaluator = new NattoEvaluator(
     [
       {
-        id: InputPaneId,
+        id: PANE_ID,
         rect: [32, 32, 256, 144],
         z: 1,
         inputs: [],
@@ -101,9 +102,38 @@ test("globals are referenced", async () => {
     { globals }
   );
   const fn = vi.fn();
-  evaluator.subscribeToPaneOutput(InputPaneId, 0, fn);
+  evaluator.subscribeToPaneOutput(PANE_ID, 0, fn);
   await new Promise(process.nextTick);
   const paneOutput = last(fn.mock.calls)[0];
   expect(paneOutput[0]).toEqual("value");
   expect(paneOutput[1]).toBe(globals.React);
+});
+
+test("transform-react-jsx babel plugin calls React global", async () => {
+  const createElementFn = vi.fn();
+  const globals = { React: { createElement: createElementFn } };
+  const evaluator = new NattoEvaluator(
+    [
+      {
+        id: PANE_ID,
+        rect: [32, 32, 256, 144],
+        z: 1,
+        inputs: [],
+        type: 0,
+        autorun: true,
+        expression: "<div>hi</div>",
+        babelPlugins: ["transform-react-jsx"],
+      },
+    ],
+    { globals }
+  );
+  const { promise, resolve } = resolver();
+  const fn = vi.fn((output) => {
+    if (output[0] === "value") {
+      expect(createElementFn).toHaveBeenCalledWith("div", null, "hi");
+      resolve();
+    }
+  });
+  evaluator.subscribeToPaneOutput(PANE_ID, 0, fn);
+  await promise;
 });

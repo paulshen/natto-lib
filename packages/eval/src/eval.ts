@@ -52,6 +52,41 @@ function isEmptyEvalExpression(expression: string) {
 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
+async function createAsyncFunction(
+  pane: Extract<Pane, { type: PaneType.Evaluate }>,
+  namedInputs: PaneInput[],
+  globalEntries: [name: string, value: any][]
+): Promise<typeof AsyncFunction> {
+  if (pane.expressionType === EvaluateExpressionType.Text) {
+    return async () => pane.expression;
+  } else {
+    const codePrefix =
+      pane.expressionType === EvaluateExpressionType.FunctionBody
+        ? ""
+        : `return ${!isEmptyEvalExpression(pane.expression) ? "(" : ""}`;
+    let code = `${codePrefix}${pane.expression}${
+      codePrefix.endsWith("(") ? ")" : ""
+    }`;
+    if (pane.babelPlugins !== undefined && pane.babelPlugins.length > 0) {
+      if (pane.babelPlugins.some((babelPlugin) => Array.isArray(babelPlugin))) {
+        throw new Error("imported babel plugins are not yet supported");
+      }
+      const babel = await import("@babel/standalone");
+      code = babel.transform(code, {
+        plugins: pane.babelPlugins,
+        parserOpts: {
+          allowReturnOutsideFunction: true,
+        },
+      }).code;
+    }
+    return new AsyncFunction(
+      ...globalEntries.map(([name]) => name),
+      ...namedInputs.map((i) => i.name),
+      code
+    );
+  }
+}
+
 function setupEvaluator(
   pane: Extract<Pane, { type: PaneType.Evaluate }>,
   outputAtom: Atom<PaneOutput>,
@@ -71,79 +106,71 @@ function setupEvaluator(
       namedInputs.push(paneInput);
     }
   }
-  let f: typeof AsyncFunction;
-  if (pane.expressionType === EvaluateExpressionType.Text) {
-    f = async () => pane.expression;
-  } else {
-    const codePrefix =
-      pane.expressionType === EvaluateExpressionType.FunctionBody
-        ? ""
-        : `return ${!isEmptyEvalExpression(pane.expression) ? "(" : ""}`;
-    const code = `${codePrefix}${pane.expression}${
-      codePrefix.endsWith("(") ? ")" : ""
-    }`;
-    if (pane.babelPlugins !== undefined && pane.babelPlugins.length > 0) {
-      throw new Error("TODO: babel plugins");
+  let dispose: (() => void) | undefined;
+  let isDisposed = false;
+  async function go() {
+    const f = await createAsyncFunction(pane, namedInputs, globalEntries);
+    let runId = 1;
+    if (isDisposed) {
+      return;
     }
-    f = new AsyncFunction(
-      ...globalEntries.map(([name]) => name),
-      ...namedInputs.map((i) => i.name),
-      code
-    );
+    dispose = autorun(async () => {
+      runId++;
+      const thisRunId = runId;
+
+      const namedInputValues = [];
+      for (const namedInput of namedInputs) {
+        if (namedInput.source === undefined) {
+          // This pane has a input that's not connected. This will never run.
+          return;
+        }
+        const [inputPaneId, outputIndex] = namedInput.source;
+        const inputAtom = outputAtomsMap[inputPaneId][outputIndex];
+        if (inputAtom.value[0] !== "value") {
+          runInAction(() => {
+            outputAtom.value = ["waiting"];
+          });
+          return;
+        }
+        namedInputValues.push(inputAtom.value[1]);
+      }
+
+      try {
+        const rv = f(
+          ...globalEntries.map(([, value]) => value),
+          ...namedInputValues
+        );
+        let didComplete = false;
+        const [promiseValue] = await Promise.all([
+          rv.then((v: any) => {
+            didComplete = true;
+            return v;
+          }),
+          Promise.resolve().then(() => {
+            if (!didComplete && thisRunId === runId) {
+              runInAction(() => {
+                outputAtom.value = ["running"];
+              });
+            }
+          }),
+        ]);
+        runInAction(() => {
+          outputAtom.value = ["value", promiseValue];
+        });
+      } catch (e) {
+        if (thisRunId === runId) {
+          runInAction(() => {
+            outputAtom.value = ["error", e];
+          });
+        }
+      }
+    });
   }
-
-  let runId = 1;
-  return autorun(async () => {
-    runId++;
-    const thisRunId = runId;
-
-    const namedInputValues = [];
-    for (const namedInput of namedInputs) {
-      if (namedInput.source === undefined) {
-        // This pane has a input that's not connected. This will never run.
-        return;
-      }
-      const [inputPaneId, outputIndex] = namedInput.source;
-      const inputAtom = outputAtomsMap[inputPaneId][outputIndex];
-      if (inputAtom.value[0] !== "value") {
-        runInAction(() => {
-          outputAtom.value = ["waiting"];
-        });
-        return;
-      }
-      namedInputValues.push(inputAtom.value[1]);
-    }
-
-    try {
-      const rv = f(
-        ...globalEntries.map(([, value]) => value),
-        ...namedInputValues
-      );
-      let didComplete = false;
-      const [promiseValue] = await Promise.all([
-        rv.then((v: any) => {
-          didComplete = true;
-          return v;
-        }),
-        Promise.resolve().then(() => {
-          if (!didComplete && thisRunId === runId) {
-            runInAction(() => {
-              outputAtom.value = ["running"];
-            });
-          }
-        }),
-      ]);
-      runInAction(() => {
-        outputAtom.value = ["value", promiseValue];
-      });
-    } catch (e) {
-      if (thisRunId === runId) {
-        runInAction(() => {
-          outputAtom.value = ["error", e];
-        });
-      }
-    }
-  });
+  go();
+  return () => {
+    isDisposed = true;
+    dispose?.();
+  };
 }
 
 async function setupImport(
