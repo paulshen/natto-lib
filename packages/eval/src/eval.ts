@@ -55,9 +55,14 @@ const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 function setupEvaluator(
   pane: Extract<Pane, { type: PaneType.Evaluate }>,
   outputAtom: Atom<PaneOutput>,
-  outputAtomsMap: Record<string, Atom<PaneOutput>[]>
+  outputAtomsMap: Record<string, Atom<PaneOutput>[]>,
+  evaluatorOptions: EvaluatorOptions
 ): () => void {
   const namedInputs: PaneInput[] = [];
+  const globalEntries =
+    evaluatorOptions.globals !== undefined
+      ? Object.entries(evaluatorOptions.globals)
+      : [];
   for (const paneInput of pane.inputs) {
     if (paneInput.source === undefined) {
       throw new Error("missing input source");
@@ -80,7 +85,11 @@ function setupEvaluator(
     if (pane.babelPlugins !== undefined && pane.babelPlugins.length > 0) {
       throw new Error("TODO: babel plugins");
     }
-    f = new AsyncFunction(...namedInputs.map((i) => i.name), code);
+    f = new AsyncFunction(
+      ...globalEntries.map(([name]) => name),
+      ...namedInputs.map((i) => i.name),
+      code
+    );
   }
 
   let runId = 1;
@@ -106,7 +115,10 @@ function setupEvaluator(
     }
 
     try {
-      const rv = f(...namedInputValues);
+      const rv = f(
+        ...globalEntries.map(([, value]) => value),
+        ...namedInputValues
+      );
       let didComplete = false;
       const [promiseValue] = await Promise.all([
         rv.then((v: any) => {
@@ -174,8 +186,13 @@ async function setupImport(
   }
 }
 
+export type EvaluatorOptions = {
+  globals?: Record<string, any>;
+};
+
 export function initPanes(
-  panes: Pane[]
+  panes: Pane[],
+  evaluatorOptions: EvaluatorOptions
 ): [
   outputAtoms: Record<string, Atom<PaneOutput>[]>,
   disposers: (() => void)[]
@@ -204,7 +221,12 @@ export function initPanes(
     switch (pane.type) {
       case PaneType.Evaluate: {
         disposers.push(
-          setupEvaluator(pane, outputAtoms[pane.id][0], outputAtoms)
+          setupEvaluator(
+            pane,
+            outputAtoms[pane.id][0],
+            outputAtoms,
+            evaluatorOptions
+          )
         );
         break;
       }

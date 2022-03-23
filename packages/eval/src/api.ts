@@ -1,14 +1,14 @@
 import { reaction, runInAction } from "mobx";
 import { Atom } from "./atom";
-import { initPanes } from "./eval";
+import { EvaluatorOptions, initPanes } from "./eval";
 import { Pane, PaneOutput } from "./types";
 
 export class NattoEvaluator {
   paneAtoms: Record<string, Atom<PaneOutput>[]>;
   disposers: (() => void)[];
 
-  constructor(panes: Pane[]) {
-    [this.paneAtoms, this.disposers] = initPanes(panes);
+  constructor(panes: Pane[], options: EvaluatorOptions = {}) {
+    [this.paneAtoms, this.disposers] = initPanes(panes, options);
   }
 
   getPaneOutput(paneId: string, outputIndex: number = 0): PaneOutput {
