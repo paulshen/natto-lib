@@ -37,8 +37,8 @@ test("runs eval panes", async () => {
   const evaluator = new NattoEvaluator(MOCK_PANES);
   const inputFn = vi.fn();
   const outputFn = vi.fn();
-  evaluator.subscribeToPaneOutput(PANE_ID, 0, inputFn);
-  evaluator.subscribeToPaneOutput(OUTPUT_PANE_ID, 0, outputFn);
+  evaluator.subscribeToPaneOutput(PANE_ID, inputFn);
+  evaluator.subscribeToPaneOutput(OUTPUT_PANE_ID, outputFn);
   await new Promise(process.nextTick);
   expect(last(inputFn.mock.calls)[0]).toEqual(["value", 1]);
   expect(last(outputFn.mock.calls)[0]).toEqual(["value", 2]);
@@ -48,12 +48,12 @@ test("setPaneValue runs dependent panes", async () => {
   const evaluator = new NattoEvaluator(MOCK_PANES);
   const inputFn = vi.fn();
   const outputFn = vi.fn();
-  evaluator.subscribeToPaneOutput(PANE_ID, 0, inputFn);
-  evaluator.subscribeToPaneOutput(OUTPUT_PANE_ID, 0, outputFn);
+  evaluator.subscribeToPaneOutput(PANE_ID, inputFn);
+  evaluator.subscribeToPaneOutput(OUTPUT_PANE_ID, outputFn);
   await new Promise(process.nextTick);
   expect(last(inputFn.mock.calls)[0]).toEqual(["value", 1]);
   expect(last(outputFn.mock.calls)[0]).toEqual(["value", 2]);
-  evaluator.setPaneValue(PANE_ID, 0, 2);
+  evaluator.setPaneValue(PANE_ID, 2);
   await new Promise(process.nextTick);
   expect(last(inputFn.mock.calls)[0]).toEqual(["value", 2]);
   expect(last(outputFn.mock.calls)[0]).toEqual(["value", 3]);
@@ -72,8 +72,8 @@ test("calling state pane setter reruns dependent panes", async () => {
   ]);
   const inputFn = vi.fn();
   const outputFn = vi.fn();
-  evaluator.subscribeToPaneOutput(PANE_ID, 0, inputFn);
-  evaluator.subscribeToPaneOutput(OUTPUT_PANE_ID, 0, outputFn);
+  evaluator.subscribeToPaneOutput(PANE_ID, inputFn);
+  evaluator.subscribeToPaneOutput(OUTPUT_PANE_ID, outputFn);
   await new Promise(process.nextTick);
   expect(last(outputFn.mock.calls)[0]).toEqual(["value", 2]);
   const stateSetterOutput = evaluator.getPaneOutput(PANE_ID, 1);
@@ -102,7 +102,7 @@ test("globals are referenced", async () => {
     { globals }
   );
   const fn = vi.fn();
-  evaluator.subscribeToPaneOutput(PANE_ID, 0, fn);
+  evaluator.subscribeToPaneOutput(PANE_ID, fn);
   await new Promise(process.nextTick);
   const paneOutput = last(fn.mock.calls)[0];
   expect(paneOutput[0]).toEqual("value");
@@ -134,6 +134,6 @@ test("transform-react-jsx babel plugin calls React global", async () => {
       resolve();
     }
   });
-  evaluator.subscribeToPaneOutput(PANE_ID, 0, fn);
+  evaluator.subscribeToPaneOutput(PANE_ID, fn);
   await promise;
 });

@@ -17,20 +17,19 @@ export class NattoEvaluator {
 
   subscribeToPaneOutput(
     paneId: string,
-    outputIndex: number,
     callback: (output: PaneOutput) => void
   ): () => void {
     return reaction(
-      () => this.paneAtoms[paneId][outputIndex].value,
+      () => this.paneAtoms[paneId][0].value,
       (output) => {
         callback(output);
       }
     );
   }
 
-  setPaneValue(paneId: string, outputIndex: number, value: any): void {
+  setPaneValue(paneId: string, value: any): void {
     runInAction(() => {
-      this.paneAtoms[paneId][outputIndex].value = ["value", value];
+      this.paneAtoms[paneId][0].value = ["value", value];
     });
   }
 
