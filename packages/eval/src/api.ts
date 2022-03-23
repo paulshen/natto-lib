@@ -1,6 +1,6 @@
 import { reaction, runInAction } from "mobx";
 import { Atom } from "./atom";
-import { EvaluatorOptions, initPanes } from "./eval";
+import { EvaluatorOptions, initPanes } from "./evaluator";
 import { Pane, PaneOutput } from "./types";
 
 export class NattoEvaluator {
