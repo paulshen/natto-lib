@@ -1,4 +1,4 @@
-import { reaction, runInAction } from "mobx";
+import { reaction, runInAction, when } from "mobx";
 import { Atom } from "./atom";
 import { EvaluatorOptions, initPanes } from "./evaluator";
 import { Pane, PaneOutput } from "./types";
@@ -13,6 +13,16 @@ export class NattoEvaluator {
 
   getPaneOutput(paneId: string, outputIndex: number = 0): PaneOutput {
     return this.paneAtoms[paneId][outputIndex].value;
+  }
+
+  async getPaneValue(paneId: string, outputIndex: number = 0): Promise<any> {
+    const paneAtom = this.paneAtoms[paneId][outputIndex];
+    const output = paneAtom.value;
+    if (output[0] === "value") {
+      return output[1];
+    }
+    await when(() => paneAtom.value[0] === "value");
+    return paneAtom.value[1];
   }
 
   subscribeToPaneOutput(

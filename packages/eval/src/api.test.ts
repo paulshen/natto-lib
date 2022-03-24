@@ -44,6 +44,11 @@ test("runs eval panes", async () => {
   expect(last(outputFn.mock.calls)[0]).toEqual(["value", 2]);
 });
 
+test("getPaneValue resolves with value", async () => {
+  const evaluator = new NattoEvaluator(MOCK_PANES);
+  expect(evaluator.getPaneValue(OUTPUT_PANE_ID)).resolves.toEqual(2);
+});
+
 test("setPaneValue runs dependent panes", async () => {
   const evaluator = new NattoEvaluator(MOCK_PANES);
   const inputFn = vi.fn();
@@ -83,6 +88,7 @@ test("calling state pane setter reruns dependent panes", async () => {
   await new Promise(process.nextTick);
   expect(last(inputFn.mock.calls)[0]).toEqual(["value", 2]);
   expect(last(outputFn.mock.calls)[0]).toEqual(["value", 3]);
+  expect(evaluator.getPaneValue(OUTPUT_PANE_ID)).resolves.toEqual(3);
 });
 
 test("globals are referenced", async () => {
