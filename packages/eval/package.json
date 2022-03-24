@@ -1,6 +1,6 @@
 {
   "name": "@nattojs/eval",
-  "version": "0.0.1",
+  "version": "0.0.1-alpha.0",
   "main": "./dist/nattojs-eval.umd.js",
   "module": "./dist/nattojs-eval.es.js",
   "types": "./dist/index.d.ts",
@@ -12,7 +12,8 @@
   },
   "scripts": {
     "test": "vitest",
-    "build": "rimraf ./dist && vite build && tsc"
+    "build": "rimraf ./dist && vite build && tsc",
+    "prepare": "yarn build"
   },
   "license": "MIT",
   "files": [
