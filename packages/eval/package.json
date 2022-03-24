@@ -9,7 +9,8 @@
   },
   "license": "MIT",
   "files": [
-    "dist"
+    "dist",
+    "!**/*.test.*"
   ],
   "devDependencies": {
     "@rocicorp/resolver": "^1.0.0",
