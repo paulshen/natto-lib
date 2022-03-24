@@ -7,17 +7,17 @@ import { NattoEvaluator } from "@nattojs/eval";
 
 const canvas = { panes: [...] };
 const evaluator = new NattoEvaluator(canvas.panes);
-evaluator.getPaneOutput(paneId);
+const paneValue = await evaluator.getPaneValue(paneId);
 ```
 
 ## API
 
 ```ts
 type PaneOutput =
-  | ["value", any]
-  | ["error", any]
+  | [type: "value", value: any]
+  | [type: "error", error: any]
   | [type: "waiting", id?: string]
-  | ["running"];
+  | [type: "running"];
 
 type EvaluatorOptions = {
   globals: Record<string, any>;
@@ -44,6 +44,7 @@ class NattoEvaluator {
 - `evaluator.subscribeToPaneOutput` and `evaluator.setPaneValue` refer to pane's first output.
 - `evaluator.subscribeToPaneOutput` returns an unsubscribe function.
 - Errors currently cause undefined behavior (todo).
+- Template panes, global panes, and import panes with global names are not yet supported.
 
 ## Example React usage
 
