@@ -71,7 +71,7 @@ async function createAsyncFunction(
       if (pane.babelPlugins.some((babelPlugin) => Array.isArray(babelPlugin))) {
         throw new Error("imported babel plugins are not yet supported");
       }
-      const babel = await import("@babel/standalone");
+      const babel = (await import("@babel/standalone")).default;
       code = babel.transform(code, {
         plugins: pane.babelPlugins,
         parserOpts: {
