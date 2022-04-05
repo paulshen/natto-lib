@@ -1,6 +1,6 @@
 {
   "name": "@nattojs/eval",
-  "version": "0.0.1-alpha.0",
+  "version": "0.0.1-alpha.1",
   "type": "module",
   "source": "src/index.ts",
   "main": "./dist/nattojs-eval.cjs",
@@ -14,7 +14,8 @@
   },
   "scripts": {
     "test": "vitest",
-    "build": "rimraf ./dist && tsc && microbundle"
+    "build": "rimraf ./dist && tsc && microbundle",
+    "prepare": "yarn build"
   },
   "license": "MIT",
   "files": [
