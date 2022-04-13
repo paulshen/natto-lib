@@ -37,12 +37,6 @@ export class NattoEvaluator {
     );
   }
 
-  setPaneValue(paneId: string, value: any): void {
-    runInAction(() => {
-      this.paneAtoms[paneId][0].value = ["value", value];
-    });
-  }
-
   destroy(): void {
     this.disposers.forEach((dispose) => {
       dispose();
