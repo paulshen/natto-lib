@@ -1,0 +1,28 @@
+{
+  "name": "natto",
+  "version": "0.0.1-alpha.2",
+  "description": "",
+  "main": "./dist/natto-lib.umd.js",
+  "module": "./dist/natto-lib.es.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/natto-lib.es.js",
+      "require": "./dist/natto-lib.umd.js"
+    }
+  },
+  "scripts": {
+    "test": "vitest",
+    "build": "rimraf ./dist && vite build && tsc",
+    "prepare": "yarn build"
+  },
+  "author": "Paul Shen",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "typescript": "^4.9.3",
+    "vite": "^3.2.5"
+  }
+}
